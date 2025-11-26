@@ -1,0 +1,12 @@
+AI powered and voice activated trivia game.
+
+I came up with this PI project to make game nights with my friends more fun!
+
+Players request a random topic.
+AI generates the script and 10 questions per game.
+Each question gets 3 hints.
+
+Text to speach model generates host lines with sarcastic jokes to guide the game
+
+Endless replayability and fun.
+
