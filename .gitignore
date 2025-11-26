@@ -1,0 +1,17 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+
+# Environment files
+.env
+*.env
+
+# Logs
+*.log
+
+# IDE/editor files
+.vscode/
+.idea/
+
+#other
+aiyprojects-raspbian
