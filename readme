@@ -1,0 +1,249 @@
+1️⃣ Proposed Directory Layout
+~/trivia-game/
+├── tts_models/              # pre-downloaded Piper or TTS models
+│   └── <voice_models.onnx>
+├── sounds/                  # all SFX and background music
+│   ├── correct.wav
+│   ├── wrong.wav
+│   ├── timer_tick.wav
+│   ├── times_up.wav
+│   ├── hint_ping.wav
+│   └── bg_music.wav
+├── questions/               # pre-generated or fetched trivia questions
+│   ├── topics.json
+│   └── <topic_name>.json
+├── scripts/                 # helper modules
+│   ├── audio_manager.py
+│   ├── button_handler.py
+│   ├── tts_manager.py
+│   ├── llm_evaluator.py
+│   ├── state_machine.py
+│   └── utils.py
+└── main.py                  # main game loop / entry point
+
+2️⃣ Class & Module Plan
+2.1 AudioManager
+
+Purpose: Play background music, TTS, and sound effects simultaneously. Non-blocking.
+
+Methods:
+
+play_bg_music(loop=True, volume=0.3)
+
+stop_bg_music()
+
+play_sfx(sfx_name)
+
+play_tts(text, voice_model=None)
+
+Internal: Uses pygame.mixer for channels.
+
+2.2 ButtonHandler
+
+Purpose: Detect short vs long presses and provide callbacks.
+
+Methods:
+
+register_short_press(callback)
+
+register_long_press(callback)
+
+start_listening()
+
+Handles debouncing, timing, and GPIO setup.
+
+2.3 TTSManager
+
+Purpose: Wrap Piper (or chosen TTS) and handle pre-generated phrases.
+
+Methods:
+
+speak(text, voice_model=None)
+
+preload_phrase(key, text)
+
+play_phrase(key)
+
+Optional caching to .wav to reduce latency.
+
+2.4 LLMEvaluator
+
+Purpose: Interface with Gemini LLM.
+
+Methods:
+
+evaluate_answer(answer_text, question_text) → returns: {correct: bool, partial: bool, score: int, feedback: str}
+
+2.5 StateMachine
+
+Purpose: Represent the game flow. Handles state transitions and timers.
+
+States:
+WAITING_TOPIC, QUESTION_ACTIVE, ANSWER_PENDING, HINT_ACTIVE, GAME_END, PAUSED
+
+Methods:
+
+next_question()
+
+repeat_question()
+
+skip_question()
+
+pause()
+
+resume()
+
+handle_answer(team, answer_text)
+
+Handles internal timers (question timer 60s, answer timer 15s).
+
+2.6 Utils
+
+Purpose: Misc helpers
+
+JSON read/write for questions
+
+Random team name generator
+
+Timer countdown helpers
+
+Logging functions
+
+3️⃣ Main Entry Point (main.py)
+
+Responsibilities:
+
+Initialize modules:
+
+audio = AudioManager()
+button = ButtonHandler()
+tts = TTSManager()
+llm = LLMEvaluator()
+game = StateMachine(audio, button, tts, llm)
+
+
+Register button callbacks:
+
+Short press → game.handle_short_press()
+
+Long press → game.handle_long_press()
+
+Start main loop:
+
+button.start_listening()
+game.run()  # loops through game states
+
+====================================================
+PHASE 1 — Core Infrastructure (Start Here)
+
+Before writing any game logic, we build:
+
+1. logger.py
+
+✔ Central logging
+✔ Both console + web interface
+✔ Safe to use anywhere
+
+2. config.py
+
+✔ Central constants
+✔ GPIO pin numbers
+✔ Timeouts (60s, 15s)
+✔ File paths
+✔ Voice model names
+✔ SFX filenames
+
+3. audio_manager.py
+
+✔ Plays WAV files
+✔ Plays TTS files
+✔ Starts background music at boot
+✔ Simple, single-channel implementation (expand later)
+
+4. button_handler.py
+
+✔ Short press
+✔ Long press
+✔ Async callback system
+✔ Module-independent of game logic
+
+✔ These four modules are the foundations of everything.
+
+After these exist, we can write game logic without thinking about GPIO or audio implementation.
+
+We start here.
+PHASE 2 — Game Skeleton (State Machine + Interfaces)
+
+This phase creates the “empty shell” of the game with no questions yet.
+
+5. state_machine.py
+
+✔ Implements all states but without real logic
+✔ Logs transitions
+✔ Methods only raise NotImplementedError for now
+
+6. main.py
+
+✔ Boot sequence
+✔ Start background music
+✔ Start button listening
+✔ Initialize state machine
+
+7. web_interface/
+
+Minimum skeleton:
+
+/status returns current state JSON
+
+/control accepts actions (pause, next question, restart)
+
+/scores returns current scores
+
+Just empty handlers for now.
+
+PHASE 3 — Question Engine & LLM Integration
+8. question_generator.py
+
+✔ Generates
+
+10–12 questions
+
+3 hints each
+
+2 humorous team names
+✔ Stores explanation why correct
+✔ Saves everything to /questions/<timestamp>.json
+
+9. llm_evaluator.py
+
+✔ Given question + answer → Gemini evaluation
+✔ Returns structured score
+✔ Handles partial answers
+
+PHASE 4 — Full Game Logic Implementation
+
+After all infrastructure exists, we connect the pieces:
+
+10. Implement states one by one:
+
+WAITING_TOPIC
+
+QUESTION_ACTIVE
+
+ANSWER_PENDING
+
+HINT_ACTIVE
+
+GAME_END
+
+PAUSED
+
+Each state becomes a method in the StateMachine:
+
+state_waiting_topic()
+state_question_active()
+state_answer_pending()
+state_hint_active()
+state_game_end()
+state_paused()
+
