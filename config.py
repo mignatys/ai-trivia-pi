@@ -6,6 +6,10 @@ All paths are relative to the project root.
 """
 
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # -----------------------------------------
 # PATHS (relative to project root)
@@ -14,8 +18,14 @@ import os
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 SOUNDS_DIR = os.path.join(PROJECT_ROOT, "sounds")
-TTS_MODELS_DIR = os.path.join(PROJECT_ROOT, "tty_models")
+TTS_MODELS_DIR = os.path.join(PROJECT_ROOT, "tts_models")
 QUESTIONS_DIR = os.path.join(PROJECT_ROOT, "questions")
+PROMPTS_DIR = os.path.join(PROJECT_ROOT, "prompts")
+
+# Game data and prompts
+GAME_QUESTIONS_FILE = os.path.join(QUESTIONS_DIR, "game_questions.json")
+QUESTION_PROMPT_FILE = os.path.join(PROMPTS_DIR, "question")
+ANSWER_PROMPT_FILE = os.path.join(PROMPTS_DIR, "answer")
 
 # Pre-generated sound effects
 SOUND_CORRECT = os.path.join(SOUNDS_DIR, "correct.wav")
@@ -23,17 +33,49 @@ SOUND_WRONG = os.path.join(SOUNDS_DIR, "wrong.wav")
 SOUND_TIMER_WARNING = os.path.join(SOUNDS_DIR, "warning.wav")
 SOUND_TICK = os.path.join(SOUNDS_DIR, "tick.wav")
 
-# Background music (boot only)
-BACKGROUND_MUSIC = os.path.join(SOUNDS_DIR, "bgm_intro.wav")
+# Background music and main voiceovers
+INTRO_MUSIC = os.path.join(SOUNDS_DIR, "grand_intro.wav")
+BACKGROUND_MUSIC = os.path.join(SOUNDS_DIR, "intro_bg.wav")
 
 # Piper TTS model
-DEFAULT_TTS_MODEL = os.path.join(TTS_MODELS_DIR, "ru_RU-denis-medium.onnx")
+DEFAULT_TTS_MODEL = os.path.join(TTS_MODELS_DIR, "ru_RU-ruslan-medium.onnx")
 
 # TTS output folder
 TTS_OUTPUT_DIR = os.path.join(PROJECT_ROOT, "tts_cache")
 
+# TTS pre-generated voice over
+TTS_DEFAULT_DIR = os.path.join(PROJECT_ROOT, "tts_default")
+TTS_QUESTION_ERROR = os.path.join(TTS_DEFAULT_DIR, "question_error.wav")
+TTS_HINT_ERROR = os.path.join(TTS_DEFAULT_DIR, "hint_error.wav")
+TTS_HOST_INTRO_ERROR = os.path.join(TTS_DEFAULT_DIR, "host_intro_error.wav")
+TTS_FACT_ERROR = os.path.join(TTS_DEFAULT_DIR, "fact_error.wav")
+TTS_CORRECT_ANSWER = os.path.join(TTS_DEFAULT_DIR, "correct_answer.wav")
+TTS_WRONG_ANSWER = os.path.join(TTS_DEFAULT_DIR, "wrong_answer.wav")
+TTS_INCOMPLETE_ANSWER = os.path.join(TTS_DEFAULT_DIR, "incomplete_answer.wav")
+TTS_NO_ANSWER = os.path.join(TTS_DEFAULT_DIR, "no_answer.wav")
+
+TTS_INTRO = os.path.join(TTS_DEFAULT_DIR, "voice_intro.wav")
+TTS_GENERATING_GAME = os.path.join(TTS_DEFAULT_DIR, "generating_game.wav")
+TTS_GAME_READY = os.path.join(TTS_DEFAULT_DIR, "game_ready.wav")
+
 # Ensure directories exist
 os.makedirs(TTS_OUTPUT_DIR, exist_ok=True)
+os.makedirs(TTS_DEFAULT_DIR, exist_ok=True)
+
+
+# -----------------------------------------
+# API KEYS
+# -----------------------------------------
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+
+# -----------------------------------------
+# PERFORMANCE CONFIG
+# -----------------------------------------
+
+TTS_WORKER_COUNT = 2 # Number of parallel threads for TTS generation
+INITIAL_QUESTION_COUNT = 1 # Number of questions to generate before game starts
 
 
 # -----------------------------------------
@@ -60,6 +102,7 @@ DOUBLE_PRESS_WINDOW = 0.35    # if needed in future
 # -----------------------------------------
 
 STATE_WAITING_TOPIC = "WAITING_TOPIC"
+STATE_WAITING_DIFFICULTY = "WAITING_DIFFICULTY"
 STATE_QUESTION_ACTIVE = "QUESTION_ACTIVE"
 STATE_ANSWER_PENDING = "ANSWER_PENDING"
 STATE_HINT_ACTIVE = "HINT_ACTIVE"
@@ -73,4 +116,3 @@ STATE_PAUSED = "PAUSED"
 
 WEB_PORT = 8080
 WEB_HOST = "0.0.0.0"
-

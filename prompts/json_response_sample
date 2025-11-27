@@ -1,0 +1,17 @@
+{
+  "theme": "string",
+  "difficulty": "string",
+  "team_names": ["string", "string"],
+  "rounds": [
+    {
+      "id": 1,
+      "host_intro": "string (sarcastic comment)",
+      "question": "string",
+      "options": ["A", "B", "C", "D"],
+      "correct_answer_id": int,
+      "hints": ["hint1", "hint2", "hint3"],
+      "fun_fact": "string"
+    }
+    // ... total 12 items
+  ]
+}
