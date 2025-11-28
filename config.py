@@ -48,11 +48,20 @@ TTS_DEFAULT_DIR = os.path.join(PROJECT_ROOT, "tts_default")
 TTS_QUESTION_ERROR = os.path.join(TTS_DEFAULT_DIR, "question_error.wav")
 TTS_HINT_ERROR = os.path.join(TTS_DEFAULT_DIR, "hint_error.wav")
 TTS_HOST_INTRO_ERROR = os.path.join(TTS_DEFAULT_DIR, "host_intro_error.wav")
-TTS_FACT_ERROR = os.path.join(TTS_DEFAULT_DIR, "fact_error.wav")
 TTS_CORRECT_ANSWER = os.path.join(TTS_DEFAULT_DIR, "correct_answer.wav")
 TTS_WRONG_ANSWER = os.path.join(TTS_DEFAULT_DIR, "wrong_answer.wav")
 TTS_INCOMPLETE_ANSWER = os.path.join(TTS_DEFAULT_DIR, "incomplete_answer.wav")
 TTS_NO_ANSWER = os.path.join(TTS_DEFAULT_DIR, "no_answer.wav")
+TTS_HINT_1 = os.path.join(TTS_DEFAULT_DIR, "first_hint.wav")
+TTS_HINT_2 = os.path.join(TTS_DEFAULT_DIR, "second_hint.wav")
+TTS_HINT_3 = os.path.join(TTS_DEFAULT_DIR, "third_hint.wav")
+TTS_WRONG_TEAM_ANSWERING = os.path.join(TTS_DEFAULT_DIR, "wrong_team_answering.wav")
+TTS_INTERMEDIATE_SCORE = os.path.join(TTS_DEFAULT_DIR, "wrong_team_answering.wav")
+TTS_FINALE_SCORE = os.path.join(TTS_DEFAULT_DIR, "final_score.wav")
+TTS_GAME_SCORE = os.path.join(TTS_DEFAULT_DIR, "game_score.wav")
+TTS_BONUS_QUESTION = os.path.join(TTS_DEFAULT_DIR, "bonus_question.wav")
+TTS_GAME_DRAW = os.path.join(TTS_DEFAULT_DIR, "game_draw.wav")
+TTS_NEW_GAME = os.path.join(TTS_DEFAULT_DIR, "new_game.wav")
 
 TTS_INTRO = os.path.join(TTS_DEFAULT_DIR, "voice_intro.wav")
 TTS_GENERATING_GAME = os.path.join(TTS_DEFAULT_DIR, "generating_game.wav")
@@ -104,9 +113,11 @@ DOUBLE_PRESS_WINDOW = 0.35    # if needed in future
 STATE_WAITING_TOPIC = "WAITING_TOPIC"
 STATE_WAITING_DIFFICULTY = "WAITING_DIFFICULTY"
 STATE_QUESTION_ACTIVE = "QUESTION_ACTIVE"
-STATE_ANSWER_PENDING = "ANSWER_PENDING"
+STATE_ANSWERING = "ANSWERING"
 STATE_HINT_ACTIVE = "HINT_ACTIVE"
+STATE_ROUND_OVER = "ROUND_OVER"
 STATE_GAME_END = "GAME_END"
+STATE_GAME_OVER_WAITING_RESTART = "GAME_OVER_WAITING_RESTART"
 STATE_PAUSED = "PAUSED"
 
 
@@ -115,4 +126,29 @@ STATE_PAUSED = "PAUSED"
 # -----------------------------------------
 
 WEB_PORT = 8080
-WEB_HOST = "0.0.0.0"
+#WEB_HOST = "0.0.0.0"
+
+# -----------------------------------------
+# Defualt voice over text
+# -----------------------------------------
+
+DEFAULT_VOICE_LINES = {
+    TTS_INTRO: "Привет! Меня зовут Михаил, и я рад приветствовать вас на нашем квизе..! Сегодня нас ждут интересные вопросы, острый ум и, конечно же, море веселья. Готовы проверить свои знания ??? Тогда давайте начнем!",
+    TTS_QUESTION_ERROR: "Хм, кажется я профукал следующий вопрос, придется пропустить",
+    TTS_HINT_ERROR: "Забыл подсказку, ладно, пропустим",
+    TTS_HOST_INTRO_ERROR: "Хотел остроумно пошутить перед вопросом, но забыл что хотел сказать, переходим к вопросу",
+    TTS_CORRECT_ANSWER: "Это правельный ответ!",
+    TTS_WRONG_ANSWER: "К сожалению ответ неверный, продолжаем",
+    TTS_INCOMPLETE_ANSWER: "Ответ неполный ",
+    TTS_NO_ANSWER: "К сожалению ни одна из команд не смогла дать нам верный ответ, а теперь внимание верный ответ",
+    TTS_HINT_1: "Первая подсказка",
+    TTS_HINT_2: "Вторая подсказка",
+    TTS_HINT_3: "Третья подсказка",
+    TTS_WRONG_TEAM_ANSWERING: "Не так быстро, вы уже дали не верный ответ, сейчас отвечает команда соперников",
+    TTS_FINALE_SCORE: "Друзья, мы подошли к фиральному вопросу нашей викторины, команда {team_one} заработала {score_one} очков, а команда {team_two} заработала {score_two} очков. Готовы к финальному вопросу?",
+    TTS_GAME_SCORE: "Это был последний вопрос нашей игры, команда {winner} выиграла со счетом {winner_score} очков, а команда {loser} заработала {loser_score} очков.",
+    TTS_INTERMEDIATE_SCORE: "Друзья, мы сиграли половину игры, текущие результаты следующие: команда {team_one} заработала {score_one} очков, а команда {team_two} заработала {score_two} очков",
+    TTS_BONUS_QUESTION: "По результатам десяти вопросов у нас ничья. Сейчас разыграем финальный бонусный вопрос,",
+    TTS_GAME_DRAW: "Это была отчаянная борьба, и по результатам игры, победила дружба!",
+    TTS_NEW_GAME: "Чтобы начать новую игру, нажмите кнопку"
+}

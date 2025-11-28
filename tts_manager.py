@@ -11,13 +11,14 @@ import shutil
 import subprocess
 import threading
 import queue
+import time
 from logger import log
 from config import DEFAULT_TTS_MODEL, TTS_OUTPUT_DIR, TTS_WORKER_COUNT, INITIAL_QUESTION_COUNT
 
 class TTSManager:
     """
     Manages batch TTS generation in two phases: initial (blocking) and
-    remaining (background).
+    remaining (background), plus on-the-fly sentence generation.
     """
     def __init__(self):
         self.model_path = DEFAULT_TTS_MODEL
@@ -55,7 +56,7 @@ class TTSManager:
                 self._generate_speech(text, output_filepath)
                 job_queue.task_done()
             except queue.Empty:
-                break # Exit when the queue is empty
+                break
 
     def _generate_speech(self, text, output_filepath):
         """Calls the Piper TTS engine to generate a .wav file."""
@@ -90,6 +91,37 @@ class TTSManager:
         
         job_queue.join()
 
+    def generate_sentence_async(self, text, filename):
+        """
+        Generates a single audio file in a background thread (non-blocking).
+        """
+        if not self.is_ready: return
+        
+        filepath = os.path.join(self.output_dir, filename)
+        log.info(f"Starting async generation for '{filename}'...")
+        # The job is a simple tuple of (text, filepath)
+        job = (text, filepath)
+        # We create a mini-queue for just this one job
+        job_queue = queue.Queue()
+        job_queue.put(job)
+        
+        # Start a single, dedicated thread for this one-off job
+        threading.Thread(target=self._tts_worker, args=(job_queue,), daemon=True).start()
+        return filepath
+
+    def _get_jobs_for_round(self, round_data):
+        """Returns a list of TTS jobs for a single round."""
+        q_id = round_data["id"]
+        jobs = [
+            (round_data["host_intro"], os.path.join(self.output_dir, f"{q_id}_host_intro.wav")),
+            (round_data["question"], os.path.join(self.output_dir, f"{q_id}_question.wav")),
+            (round_data["answer"], os.path.join(self.output_dir, f"{q_id}_answer.wav")),
+            (round_data["fun_fact"], os.path.join(self.output_dir, f"{q_id}_fun_fact.wav"))
+        ]
+        for j, hint in enumerate(round_data["hints"]):
+            jobs.append((hint, os.path.join(self.output_dir, f"{q_id}_hint_{j+1}.wav")))
+        return jobs
+
     def generate_initial_audio(self, game_data):
         """
         Phase 1: Generates high-priority audio (blocking).
@@ -103,12 +135,7 @@ class TTSManager:
 
         for i, round_data in enumerate(game_data["rounds"]):
             if i < INITIAL_QUESTION_COUNT:
-                q_id = round_data["id"]
-                initial_jobs.append((round_data["host_intro"], os.path.join(self.output_dir, f"{q_id}_host_intro.wav")))
-                initial_jobs.append((round_data["question"], os.path.join(self.output_dir, f"{q_id}_question.wav")))
-                for j, hint in enumerate(round_data["hints"]):
-                    initial_jobs.append((hint, os.path.join(self.output_dir, f"{q_id}_hint_{j+1}.wav")))
-                initial_jobs.append((round_data["fun_fact"], os.path.join(self.output_dir, f"{q_id}_fun_fact.wav")))
+                initial_jobs.extend(self._get_jobs_for_round(round_data))
         
         log.info(f"Starting initial TTS generation for {len(initial_jobs)} audio files...")
         self._run_generation_jobs(initial_jobs)
@@ -123,12 +150,7 @@ class TTSManager:
         remaining_jobs = []
         for i, round_data in enumerate(self.game_data["rounds"]):
             if i >= INITIAL_QUESTION_COUNT:
-                q_id = round_data["id"]
-                remaining_jobs.append((round_data["host_intro"], os.path.join(self.output_dir, f"{q_id}_host_intro.wav")))
-                remaining_jobs.append((round_data["question"], os.path.join(self.output_dir, f"{q_id}_question.wav")))
-                for j, hint in enumerate(round_data["hints"]):
-                    remaining_jobs.append((hint, os.path.join(self.output_dir, f"{q_id}_hint_{j+1}.wav")))
-                remaining_jobs.append((round_data["fun_fact"], os.path.join(self.output_dir, f"{q_id}_fun_fact.wav")))
+                remaining_jobs.extend(self._get_jobs_for_round(round_data))
 
         if not remaining_jobs:
             return
@@ -148,6 +170,9 @@ class TTSManager:
 
     def get_question_audio(self, question_id):
         return self._get_audio_path(f"{question_id}_question.wav")
+    
+    def get_answer_audio(self, question_id):
+        return self._get_audio_path(f"{question_id}_answer.wav")
 
     def get_hint_audio(self, question_id, hint_number):
         return self._get_audio_path(f"{question_id}_hint_{hint_number}.wav")

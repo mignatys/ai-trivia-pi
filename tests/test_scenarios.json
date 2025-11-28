@@ -1,0 +1,91 @@
+[
+  {
+    "name": "Successful Topic and Difficulty Selection",
+    "initial_state": "STATE_WAITING_TOPIC",
+    "actions": [
+      {
+        "type": "short_press",
+        "stt_return": "Космос"
+      },
+      {
+        "type": "short_press",
+        "stt_return": "Легкий"
+      }
+    ],
+    "expected_final_state": "STATE_WAITING_TOPIC",
+    "expected_audio_played": [
+      "BACKGROUND_MUSIC",
+      "TTS_GENERATING_GAME",
+      "TTS_GAME_READY"
+    ],
+    "notes": "Tests the initial setup flow. Ends in WAITING_TOPIC, ready to start the game."
+  },
+  {
+    "name": "Team 1 Answers Correctly on First Try",
+    "initial_state": "STATE_QUESTION_ACTIVE",
+    "setup": {
+      "current_question_index": 0,
+      "team_priority": 0,
+      "time_remaining_in_round": 60,
+      "game_data": {
+        "team_names": ["Кометы", "Ракеты"],
+        "rounds": [
+          { "id": 1, "question": "Q1", "answer": "A1", "fun_fact": "F1" }
+        ]
+      }
+    },
+    "actions": [
+      {
+        "type": "short_press"
+      },
+      {
+        "type": "stt_return",
+        "llm_eval": { "answer": "CORRECT", "team_name": "Кометы" }
+      }
+    ],
+    "expected_final_state": "STATE_ROUND_OVER",
+    "expected_audio_played": [
+      "SOUND_CORRECT",
+      "TTS_CORRECT_ANSWER",
+      "FUN_FACT_1"
+    ],
+    "notes": "Tests the simplest correct answer path."
+  },
+  {
+    "name": "Team 1 is Wrong, Team 2 is Correct",
+    "initial_state": "STATE_QUESTION_ACTIVE",
+    "setup": {
+      "current_question_index": 1,
+      "team_priority": 0,
+      "time_remaining_in_round": 45,
+      "game_data": {
+        "team_names": ["Кометы", "Ракеты"],
+        "rounds": [
+          {},
+          { "id": 2, "question": "Q2", "answer": "A2", "fun_fact": "F2" }
+        ]
+      }
+    },
+    "actions": [
+      {
+        "type": "short_press",
+        "stt_return": "Неправильный ответ",
+        "llm_eval": { "answer": "INCORRECT", "team_name": "Кометы" }
+      },
+      {
+        "type": "short_press",
+        "stt_return": "Правильный ответ",
+        "llm_eval": { "answer": "CORRECT", "team_name": "Ракеты" }
+      }
+    ],
+    "expected_final_state": "STATE_ROUND_OVER",
+    "expected_audio_played": [
+      "SOUND_WRONG",
+      "TTS_WRONG_ANSWER",
+      "SOUND_CORRECT",
+      "TTS_CORRECT_ANSWER",
+      "FUN_FACT_2"
+    ],
+    "notes": "Tests the flow where priority passes from one team to the other."
+  }
+]
