@@ -3,22 +3,22 @@
     "name": "Successful Topic and Difficulty Selection",
     "initial_state": "STATE_WAITING_TOPIC",
     "actions": [
-      {
-        "type": "short_press",
-        "stt_return": "Космос"
-      },
-      {
-        "type": "short_press",
-        "stt_return": "Легкий"
-      }
+      { "type": "short_press" },
+      { "type": "short_press", "stt_return": "Космос" },
+      { "type": "short_press" },
+      { "type": "short_press", "stt_return": "Легкий" }
     ],
     "expected_final_state": "STATE_WAITING_TOPIC",
     "expected_audio_played": [
+      "TTS_TOPIC",
+      "TTS_DIFICULTY",
       "BACKGROUND_MUSIC",
       "TTS_GENERATING_GAME",
+      "STOP_BG_MUSIC",
+      "GENERATING_MUSIC",
+      "DYNAMIC_AUDIO:teams_greating.wav",
       "TTS_GAME_READY"
-    ],
-    "notes": "Tests the initial setup flow. Ends in WAITING_TOPIC, ready to start the game."
+    ]
   },
   {
     "name": "Team 1 Answers Correctly on First Try",
@@ -27,29 +27,13 @@
       "current_question_index": 0,
       "team_priority": 0,
       "time_remaining_in_round": 60,
-      "game_data": {
-        "team_names": ["Кометы", "Ракеты"],
-        "rounds": [
-          { "id": 1, "question": "Q1", "answer": "A1", "fun_fact": "F1" }
-        ]
-      }
+      "game_data": { "team_names": ["Кометы", "Ракеты"], "rounds": [{ "id": 1, "question": "Q1", "answer": "A1", "fun_fact": "F1" }] }
     },
     "actions": [
-      {
-        "type": "short_press"
-      },
-      {
-        "type": "stt_return",
-        "llm_eval": { "answer": "CORRECT", "team_name": "Кометы" }
-      }
+      { "type": "short_press", "stt_return": "Кометы говорят А1", "llm_eval": { "answer": "CORRECT", "team_name": "Кометы" } }
     ],
     "expected_final_state": "STATE_ROUND_OVER",
-    "expected_audio_played": [
-      "SOUND_CORRECT",
-      "TTS_CORRECT_ANSWER",
-      "FUN_FACT_1"
-    ],
-    "notes": "Tests the simplest correct answer path."
+    "expected_audio_played": ["DYNAMIC_AUDIO:intro_1.wav", "DYNAMIC_AUDIO:question_1.wav", "SOUND_CORRECT", "TTS_CORRECT_ANSWER", "DYNAMIC_AUDIO:fun_fact_1.wav"]
   },
   {
     "name": "Team 1 is Wrong, Team 2 is Correct",
@@ -58,34 +42,309 @@
       "current_question_index": 1,
       "team_priority": 0,
       "time_remaining_in_round": 45,
+      "game_data": { "team_names": ["Кометы", "Ракеты"], "rounds": [{}, { "id": 2, "question": "Q2", "answer": "A2", "fun_fact": "F2" }] }
+    },
+    "actions": [
+      { "type": "short_press", "stt_return": "Кометы говорят Неправильный ответ", "llm_eval": { "answer": "INCORRECT", "team_name": "Кометы" } },
+      { "type": "short_press", "stt_return": "Ракеты говорят A2", "llm_eval": { "answer": "CORRECT", "team_name": "Ракеты" } }
+    ],
+    "expected_final_state": "STATE_ROUND_OVER",
+    "expected_audio_played": ["DYNAMIC_AUDIO:intro_2.wav", "DYNAMIC_AUDIO:question_2.wav", "SOUND_WRONG", "TTS_WRONG_ANSWER", "SOUND_CORRECT", "TTS_CORRECT_ANSWER", "DYNAMIC_AUDIO:fun_fact_2.wav"]
+  },
+  {
+    "name": "All Hints Used, No Correct Answer",
+    "initial_state": "STATE_QUESTION_ACTIVE",
+    "setup": {
+      "current_question_index": 0,
+      "team_priority": 0,
+      "time_remaining_in_round": 60,
+      "game_data": { "team_names": ["T1", "T2"], "rounds": [{ "id": 1, "question": "Q1", "answer": "A1", "fun_fact": "F1", "hints": ["H1","H2","H3"] }] }
+    },
+    "actions": [
+      { "type": "timer_expired" },
+      { "type": "timer_expired" },
+      { "type": "timer_expired" },
+      { "type": "timer_expired" }
+    ],
+    "expected_final_state": "STATE_ROUND_OVER",
+    "expected_audio_played": ["DYNAMIC_AUDIO:intro_1.wav", "DYNAMIC_AUDIO:question_1.wav", "TTS_HINT_1", "DYNAMIC_AUDIO:hint_1_1.wav", "TTS_HINT_2", "DYNAMIC_AUDIO:hint_1_2.wav", "TTS_HINT_3", "DYNAMIC_AUDIO:hint_1_3.wav", "TTS_NO_ANSWER", "DYNAMIC_AUDIO:answer_1.wav", "DYNAMIC_AUDIO:fun_fact_1.wav"]
+  },
+  {
+    "name": "LLM Returns Non-Existent Team Name then Correct",
+    "initial_state": "STATE_QUESTION_ACTIVE",
+    "setup": {
+      "current_question_index": 0,
+      "team_priority": 0,
+      "time_remaining_in_round": 60,
+      "game_data": { "team_names": ["Team A", "Team B"], "rounds": [{ "id": 1, "question": "Q1", "answer": "A1", "fun_fact": "F1" }] }
+    },
+    "actions": [
+      { "type": "short_press", "stt_return": "An answer", "llm_eval": { "answer": "CORRECT", "team_name": "NonExistentTeam" } },
+      { "type": "short_press", "stt_return": "Team A with the right answer", "llm_eval": { "answer": "CORRECT", "team_name": "Team A" } }
+    ],
+    "expected_final_state": "STATE_ROUND_OVER",
+    "expected_audio_played": ["TTS_WRONG_TEAM", "SOUND_CORRECT", "TTS_CORRECT_ANSWER", "DYNAMIC_AUDIO:fun_fact_1.wav"]
+  },
+  {
+    "name": "LLM Returns Result Without Team Name then Correct",
+    "initial_state": "STATE_QUESTION_ACTIVE",
+    "setup": {
+      "current_question_index": 0,
+      "team_priority": 0,
+      "time_remaining_in_round": 60,
+      "game_data": { "team_names": ["Team A", "Team B"], "rounds": [{ "id": 1, "question": "Q1", "answer": "A1", "fun_fact": "F1" }] }
+    },
+    "actions": [
+      { "type": "short_press", "stt_return": "An answer", "llm_eval": { "answer": "CORRECT" } },
+      { "type": "short_press", "stt_return": "Team A with the right answer", "llm_eval": { "answer": "CORRECT", "team_name": "Team A" } }
+    ],
+    "expected_final_state": "STATE_ROUND_OVER",
+    "expected_audio_played": ["TTS_WRONG_TEAM", "SOUND_CORRECT", "TTS_CORRECT_ANSWER", "DYNAMIC_AUDIO:fun_fact_1.wav"]
+  },
+  {
+    "name": "LLM Returns Empty Team Name then Correct",
+    "initial_state": "STATE_QUESTION_ACTIVE",
+    "setup": {
+      "current_question_index": 0,
+      "team_priority": 0,
+      "time_remaining_in_round": 60,
+      "game_data": { "team_names": ["Team A", "Team B"], "rounds": [{ "id": 1, "question": "Q1", "answer": "A1", "fun_fact": "F1" }] }
+    },
+    "actions": [
+      { "type": "short_press", "stt_return": "An answer", "llm_eval": { "answer": "CORRECT", "team_name": "" } },
+      { "type": "short_press", "stt_return": "Team A with the right answer", "llm_eval": { "answer": "CORRECT", "team_name": "Team A" } }
+    ],
+    "expected_final_state": "STATE_ROUND_OVER",
+    "expected_audio_played": ["TTS_WRONG_TEAM", "SOUND_CORRECT", "TTS_CORRECT_ANSWER", "DYNAMIC_AUDIO:fun_fact_1.wav"]
+  },
+  {
+    "name": "E2E: Win at Round 10",
+    "initial_state": "STATE_QUESTION_ACTIVE",
+    "setup": {
+      "current_question_index": 0,
+      "scores": [0, 0],
       "game_data": {
-        "team_names": ["Кометы", "Ракеты"],
+        "team_names": ["Team A", "Team B"],
         "rounds": [
-          {},
-          { "id": 2, "question": "Q2", "answer": "A2", "fun_fact": "F2" }
+          {"id": 1, "question": "Q1", "answer": "A1", "fun_fact": "F1"},
+          {"id": 2, "question": "Q2", "answer": "A2", "fun_fact": "F2"},
+          {"id": 3, "question": "Q3", "answer": "A3", "fun_fact": "F3"},
+          {"id": 4, "question": "Q4", "answer": "A4", "fun_fact": "F4"},
+          {"id": 5, "question": "Q5", "answer": "A5", "fun_fact": "F5"},
+          {"id": 6, "question": "Q6", "answer": "A6", "fun_fact": "F6"},
+          {"id": 7, "question": "Q7", "answer": "A7", "fun_fact": "F7"},
+          {"id": 8, "question": "Q8", "answer": "A8", "fun_fact": "F8"},
+          {"id": 9, "question": "Q9", "answer": "A9", "fun_fact": "F9"},
+          {"id": 10, "question": "Q10", "answer": "A10", "fun_fact": "F10"}
         ]
       }
     },
     "actions": [
-      {
-        "type": "short_press",
-        "stt_return": "Неправильный ответ",
-        "llm_eval": { "answer": "INCORRECT", "team_name": "Кометы" }
-      },
-      {
-        "type": "short_press",
-        "stt_return": "Правильный ответ",
-        "llm_eval": { "answer": "CORRECT", "team_name": "Ракеты" }
-      }
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team A"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "INCORRECT", "team_name": "Team B"}},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team A"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team A"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team B"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team A"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team B"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team A"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team B"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team A"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team B"}},
+      {"type": "short_press"}
     ],
-    "expected_final_state": "STATE_ROUND_OVER",
+    "expected_final_state": "STATE_GAME_OVER_WAITING_RESTART",
     "expected_audio_played": [
-      "SOUND_WRONG",
-      "TTS_WRONG_ANSWER",
-      "SOUND_CORRECT",
-      "TTS_CORRECT_ANSWER",
-      "FUN_FACT_2"
+      "DYNAMIC_AUDIO:score_announcement_round_5.wav",
+      "DYNAMIC_AUDIO:score_announcement_round_9.wav",
+      "DYNAMIC_AUDIO:score_announcement_round_10.wav",
+      "TTS_NEW_GAME"
+    ]
+  },
+  {
+    "name": "E2E: Win at Round 11 (Tie-Breaker)",
+    "initial_state": "STATE_QUESTION_ACTIVE",
+    "setup": {
+      "current_question_index": 0,
+      "scores": [0, 0],
+      "game_data": {
+        "team_names": ["Team A", "Team B"],
+        "rounds": [
+          {"id": 1, "question": "Q1", "answer": "A1", "fun_fact": "F1"},
+          {"id": 2, "question": "Q2", "answer": "A2", "fun_fact": "F2"},
+          {"id": 3, "question": "Q3", "answer": "A3", "fun_fact": "F3"},
+          {"id": 4, "question": "Q4", "answer": "A4", "fun_fact": "F4"},
+          {"id": 5, "question": "Q5", "answer": "A5", "fun_fact": "F5"},
+          {"id": 6, "question": "Q6", "answer": "A6", "fun_fact": "F6"},
+          {"id": 7, "question": "Q7", "answer": "A7", "fun_fact": "F7"},
+          {"id": 8, "question": "Q8", "answer": "A8", "fun_fact": "F8"},
+          {"id": 9, "question": "Q9", "answer": "A9", "fun_fact": "F9"},
+          {"id": 10, "question": "Q10", "answer": "A10", "fun_fact": "F10"},
+          {"id": 11, "question": "Q11", "answer": "A11", "fun_fact": "F11"}
+        ]
+      }
+    },
+    "actions": [
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team A"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team B"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team A"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team B"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team A"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team B"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team A"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team B"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team A"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team B"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team A"}},
+      {"type": "short_press"}
     ],
-    "notes": "Tests the flow where priority passes from one team to the other."
+    "expected_final_state": "STATE_GAME_OVER_WAITING_RESTART",
+    "expected_audio_played": [
+      "TTS_BONUS_QUESTION",
+      "DYNAMIC_AUDIO:score_announcement_round_11.wav",
+      "TTS_NEW_GAME"
+    ]
+  },
+  {
+    "name": "E2E: Win at Round 12 (Second Tie-Breaker)",
+    "initial_state": "STATE_QUESTION_ACTIVE",
+    "setup": {
+      "current_question_index": 0,
+      "scores": [0, 0],
+      "game_data": {
+        "team_names": ["Team A", "Team B"],
+        "rounds": [
+          {"id": 1, "question": "Q1", "answer": "A1", "fun_fact": "F1"},
+          {"id": 2, "question": "Q2", "answer": "A2", "fun_fact": "F2"},
+          {"id": 3, "question": "Q3", "answer": "A3", "fun_fact": "F3"},
+          {"id": 4, "question": "Q4", "answer": "A4", "fun_fact": "F4"},
+          {"id": 5, "question": "Q5", "answer": "A5", "fun_fact": "F5"},
+          {"id": 6, "question": "Q6", "answer": "A6", "fun_fact": "F6"},
+          {"id": 7, "question": "Q7", "answer": "A7", "fun_fact": "F7"},
+          {"id": 8, "question": "Q8", "answer": "A8", "fun_fact": "F8"},
+          {"id": 9, "question": "Q9", "answer": "A9", "fun_fact": "F9"},
+          {"id": 10, "question": "Q10", "answer": "A10", "fun_fact": "F10"},
+          {"id": 11, "question": "Q11", "answer": "A11", "fun_fact": "F11", "hints": ["H1", "H2", "H3"]},
+          {"id": 12, "question": "Q12", "answer": "A12", "fun_fact": "F12"}
+        ]
+      }
+    },
+    "actions": [
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team A"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team B"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team A"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team B"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team A"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team B"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team A"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team B"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team A"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team B"}},
+      {"type": "short_press"},
+      {"type": "timer_expired"},
+      {"type": "timer_expired"},
+      {"type": "timer_expired"},
+      {"type": "timer_expired"},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team B"}},
+      {"type": "short_press"}
+    ],
+    "expected_final_state": "STATE_GAME_OVER_WAITING_RESTART",
+    "expected_audio_played": [
+      "TTS_BONUS_QUESTION",
+      "TTS_HINT_1",
+      "TTS_HINT_2",
+      "TTS_HINT_3",
+      "TTS_NO_ANSWER",
+      "DYNAMIC_AUDIO:score_announcement_round_12.wav",
+      "TTS_NEW_GAME"
+    ]
+  },
+  {
+    "name": "E2E: Draw After All Tie-Breakers",
+    "initial_state": "STATE_QUESTION_ACTIVE",
+    "setup": {
+      "current_question_index": 0,
+      "scores": [0, 0],
+      "game_data": {
+        "team_names": ["Team A", "Team B"],
+        "rounds": [
+          {"id": 1, "question": "Q1", "answer": "A1", "fun_fact": "F1"},
+          {"id": 2, "question": "Q2", "answer": "A2", "fun_fact": "F2"},
+          {"id": 3, "question": "Q3", "answer": "A3", "fun_fact": "F3"},
+          {"id": 4, "question": "Q4", "answer": "A4", "fun_fact": "F4"},
+          {"id": 5, "question": "Q5", "answer": "A5", "fun_fact": "F5"},
+          {"id": 6, "question": "Q6", "answer": "A6", "fun_fact": "F6"},
+          {"id": 7, "question": "Q7", "answer": "A7", "fun_fact": "F7"},
+          {"id": 8, "question": "Q8", "answer": "A8", "fun_fact": "F8"},
+          {"id": 9, "question": "Q9", "answer": "A9", "fun_fact": "F9"},
+          {"id": 10, "question": "Q10", "answer": "A10", "fun_fact": "F10"},
+          {"id": 11, "question": "Q11", "answer": "A11", "fun_fact": "F11"},
+          {"id": 12, "question": "Q12", "answer": "A12", "fun_fact": "F12"}
+        ]
+      }
+    },
+    "actions": [
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team A"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team B"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team A"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team B"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team A"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team B"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team A"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team B"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team A"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "CORRECT", "team_name": "Team B"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "INCORRECT", "team_name": "Team A"}},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "INCORRECT", "team_name": "Team B"}},
+      {"type": "short_press"},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "INCORRECT", "team_name": "Team B"}},
+      {"type": "short_press", "stt_return": "A", "llm_eval": {"answer": "INCORRECT", "team_name": "Team A"}},
+      {"type": "short_press"}
+    ],
+    "expected_final_state": "STATE_GAME_OVER_WAITING_RESTART",
+    "expected_audio_played": [
+      "TTS_BONUS_QUESTION",
+      "TTS_GAME_DRAW",
+      "TTS_NEW_GAME"
+    ]
   }
 ]

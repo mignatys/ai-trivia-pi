@@ -7,8 +7,9 @@ questions and evaluating player answers.
 
 import google.generativeai as genai
 import json
+import os
 from logger import log
-from config import GEMINI_API_KEY, QUESTION_PROMPT_FILE, ANSWER_PROMPT_FILE, GAME_QUESTIONS_FILE
+from config import GEMINI_API_KEY, QUESTION_PROMPT_FILE, ANSWER_PROMPT_FILE, GAME_QUESTIONS_FILE, OVERWRITE_EXISTING_QUESTIONS
 
 class LLMEvaluator:
     """
@@ -26,12 +27,10 @@ class LLMEvaluator:
         try:
             genai.configure(api_key=GEMINI_API_KEY)
             
-            # A powerful model for high-quality question generation
             self.generation_model_name = 'models/gemini-pro-latest'
             self.generation_model = genai.GenerativeModel(self.generation_model_name)
             log.info(f"Using '{self.generation_model_name}' for question generation.")
 
-            # A fast model for low-latency answer evaluation
             self.evaluation_model_name = 'models/gemini-flash-latest'
             self.evaluation_model = genai.GenerativeModel(self.evaluation_model_name)
             log.info(f"Using '{self.evaluation_model_name}' for answer evaluation.")
@@ -53,11 +52,16 @@ class LLMEvaluator:
 
     def get_questions(self, language, difficulty, topic):
         """
-        Generates a new set of trivia questions using the powerful generation model.
+        Generates a new set of trivia questions, skipping if the file exists
+        and overwriting is disabled.
         """
         if not self.is_ready:
             log.error("LLM is not ready. Cannot generate questions.")
             return False
+            
+        if not OVERWRITE_EXISTING_QUESTIONS and os.path.exists(GAME_QUESTIONS_FILE):
+            log.info(f"Skipping question generation, file already exists: {GAME_QUESTIONS_FILE}")
+            return True
 
         prompt_template = self._load_prompt(QUESTION_PROMPT_FILE)
         if not prompt_template:

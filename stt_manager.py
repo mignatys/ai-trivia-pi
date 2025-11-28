@@ -13,12 +13,15 @@ from logger import log
 import threading
 import queue
 import wave
+import time
 
 # Audio recording parameters
 SAMPLERATE = 16000
 CHANNELS = 1
 DTYPE = 'int16'
 WAV_OUTPUT_FILENAME = "last_recording.wav"
+SILENCE_THRESHOLD = 500  # RMS threshold for considering audio as silence
+BLOCK_SIZE = 8000 # Block size for audio processing
 
 class STTManager:
     """
@@ -42,9 +45,6 @@ class STTManager:
     def _audio_callback(self, indata, frames, time, status):
         """This is called by the sounddevice stream for each audio block."""
         if status:
-            # This warning is common on Raspberry Pi and means the CPU is not
-            # keeping up with the audio stream. It's generally safe to ignore
-            # unless recognition quality is severely impacted.
             log.warn(f"Sounddevice status: {status}")
         self._buffer.put(bytes(indata))
 
@@ -54,8 +54,6 @@ class STTManager:
         try:
             with wave.open(WAV_OUTPUT_FILENAME, 'wb') as wf:
                 wf.setnchannels(CHANNELS)
-                # FIX: Hardcode the sample width to 2 bytes for 'int16'
-                # This is more robust than using a helper function.
                 wf.setsampwidth(2)
                 wf.setframerate(SAMPLERATE)
                 wf.writeframes(b''.join(audio_chunks))
@@ -63,28 +61,42 @@ class STTManager:
         except Exception as e:
             log.error(f"Failed to save .wav file: {e}")
 
-    def recognize_speech(self, hint_text="Speak now...", timeout_sec=15):
+    def recognize_speech(self, hint_text="Speak now...", timeout_sec=15, silence_duration_sec=2.0):
         """
         Listens for a single utterance and returns the transcribed text.
+        Stops listening after a period of silence.
         """
         log.info(f"Listening for speech... ({hint_text})")
         self._buffer = queue.Queue()
         self._stop_event.clear()
         
         recorded_chunks = []
+        last_sound_time = time.time()
 
         def audio_generator():
+            nonlocal last_sound_time
             while not self._stop_event.is_set():
                 chunk = self._buffer.get()
                 if chunk is None:
                     break
+                
                 recorded_chunks.append(chunk)
+                
+                # Simple RMS-based silence detection
+                rms = np.sqrt(np.mean(np.frombuffer(chunk, dtype=np.int16).astype(np.float32)**2))
+                if rms > SILENCE_THRESHOLD:
+                    last_sound_time = time.time()
+                
+                if time.time() - last_sound_time > silence_duration_sec:
+                    log.info(f"Silence detected for over {silence_duration_sec} seconds. Stopping recording.")
+                    self._stop_event.set()
+
                 yield speech.StreamingRecognizeRequest(audio_content=chunk)
 
         try:
             log.info("Recording started...")
             with sd.InputStream(samplerate=SAMPLERATE, channels=CHANNELS, dtype=DTYPE,
-                                callback=self._audio_callback):
+                                blocksize=BLOCK_SIZE, callback=self._audio_callback):
                 
                 requests = audio_generator()
                 responses = self.client.streaming_recognize(
@@ -106,7 +118,7 @@ class STTManager:
                         log.info(f"Speech recognized: '{text}'")
                         return text
             
-            log.info("No speech detected within the timeout.")
+            log.info("No speech detected within the timeout or recording stopped due to silence.")
             return None
 
         except Exception as e:
@@ -115,8 +127,8 @@ class STTManager:
                 log.info("Recognition timed out.")
             return None
         finally:
-            # This ensures recording is always stopped and the file is saved.
             self._stop_event.set()
+            self._buffer.put(None) # Ensure the generator loop terminates
             self._write_to_wav(recorded_chunks)
             log.info("Recording stopped.")
 

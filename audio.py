@@ -2,14 +2,19 @@ import os
 import threading
 import pygame
 import time
+from config import TTS_SAMPLE_RATE
 
 os.environ['SDL_AUDIODRIVER'] = 'alsa'
 os.environ['SDL_ALSA_DEVICE'] = 'plughw:2,0'
 
 class AudioManager:
     def __init__(self):
-        pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=4096)
+        pygame.mixer.init(frequency=TTS_SAMPLE_RATE, size=-16, channels=1, buffer=4096)
         self.bg_lock = threading.Lock()
+
+    def stop_all_sounds(self):
+        """Stops all currently playing sounds on all channels."""
+        pygame.mixer.stop()
 
     # Blocking playback for voice/effects
     def play(self, filepath, volume=1.0):
@@ -57,4 +62,3 @@ class AudioManager:
 
 # Global instance
 audio = AudioManager()
-
