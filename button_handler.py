@@ -8,7 +8,8 @@ short and long presses using the aiy.board library.
 import time
 import threading
 from logger import log
-from config import LONG_PRESS_THRESHOLD
+from config import LONG_PRESS_THRESHOLD, SOUND_BUTTON_PRESS
+from audio import audio
 
 # Attempt to import aiy.board and set up the board.
 # If it fails, the handler will not be functional.
@@ -55,6 +56,7 @@ class ButtonHandler:
     def _on_pressed(self):
         """Internal callback for when the button is pressed."""
         self._press_time = time.time()
+        audio.play_async(SOUND_BUTTON_PRESS)
 
     def _on_released(self):
         """Internal callback for when the button is released."""

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pi Trivia Game</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="settings-icon">
+        <a href="{{ url_for('setup') }}">⚙️</a>
+    </div>
+    <div id="status-bar"></div>
+    <div class="container">
+        <div id="question-area">
+            <div id="timer"></div>
+            <h1 id="question-text">Waiting for game to start...</h1>
+            <div id="hint-container"></div>
+        </div>
+        <div id="teams-area">
+            <div class="team-panel" id="team-one">
+                <h2 id="team-one-name">Team 1</h2>
+                <div class="score" id="team-one-score">0</div>
+            </div>
+            <div class="team-panel" id="team-two">
+                <h2 id="team-two-name">Team 2</h2>
+                <div class="score" id="team-two-score">0</div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

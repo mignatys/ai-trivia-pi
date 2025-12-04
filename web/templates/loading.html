@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pi Trivia Game - Loading...</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1a1a1a;
+            color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+        h1 {
+            font-size: 4vw;
+            color: #87CEEB;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <h1>Game is Loading...</h1>
+        <p>Please wait.</p>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', (event) => {
+            const socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
+            socket.on('game_ready', () => {
+                console.log('Game is ready! Reloading page...');
+                window.location.reload();
+            });
+        });
+    </script>
+</body>
+</html>

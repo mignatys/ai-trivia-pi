@@ -1,0 +1,10 @@
+google-cloud-aiplatform
+google-generativeai
+google-cloud-speech
+
+sounddevice
+pygame
+python-dotenv
+psutil
+flask
+Flask-SocketIO

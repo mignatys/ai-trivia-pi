@@ -1,44 +1,65 @@
 """
 llm_evaluator.py
 ----------------
-Handles all interactions with the Gemini LLM, including generating game
-questions and evaluating player answers.
+Handles all interactions with the Gemini LLM via the Vertex AI High-Level SDK.
 """
 
-import google.generativeai as genai
 import json
 import os
+import traceback
 from logger import log
-from config import GEMINI_API_KEY, QUESTION_PROMPT_FILE, ANSWER_PROMPT_FILE, GAME_QUESTIONS_FILE, OVERWRITE_EXISTING_QUESTIONS
+from config import (
+    QUESTION_PROMPT_FILE, 
+    ANSWER_PROMPT_FILE, 
+    GAME_QUESTIONS_FILE, 
+    OVERWRITE_EXISTING_QUESTIONS,
+    GCP_PROJECT_ID,
+    GCP_LOCATION
+)
+
+# --- CORRECT IMPORT: Use the High-Level Vertex AI SDK ---
+try:
+    import vertexai
+    from vertexai.generative_models import GenerativeModel, GenerationConfig
+except ImportError:
+    log.error("The 'google-cloud-aiplatform' library is not installed. Please run 'pip install google-cloud-aiplatform'.")
+    exit(1)
 
 class LLMEvaluator:
     """
-    A wrapper for the Gemini API to handle prompt-based generation and evaluation.
-    Uses a powerful model for question generation and a fast model for evaluation.
+    A wrapper for the Gemini LLM API via Vertex AI to handle prompt-based 
+    generation and evaluation using the High-Level SDK.
     """
     def __init__(self):
-        if not GEMINI_API_KEY:
-            log.error("GEMINI_API_KEY not found in environment variables. LLM evaluator will be disabled.")
-            self.is_ready = False
-            self.generation_model = None
-            self.evaluation_model = None
-            return
+        self.is_ready = False
+        # Use official model names
+        self.generation_model_name = "gemini-2.5-pro"
+        self.evaluation_model_name = "gemini-2.5-flash"
 
         try:
-            genai.configure(api_key=GEMINI_API_KEY)
+            log.debug(f"Initializing Vertex AI for project '{GCP_PROJECT_ID}' in location '{GCP_LOCATION}'...")
             
-            self.generation_model_name = 'models/gemini-pro-latest'
-            self.generation_model = genai.GenerativeModel(self.generation_model_name)
-            log.info(f"Using '{self.generation_model_name}' for question generation.")
+            # --- AUTHENTICATION ---
+            # vertexai.init() automatically looks for GOOGLE_APPLICATION_CREDENTIALS
+            # which you set in your systemd service file.
+            vertexai.init(project=GCP_PROJECT_ID, location=GCP_LOCATION)
+            log.debug("Vertex AI initialized successfully.")
 
-            self.evaluation_model_name = 'models/gemini-flash-latest'
-            self.evaluation_model = genai.GenerativeModel(self.evaluation_model_name)
+            # --- MODEL SETUP ---
+            # We instantiate the model objects directly.
+            self.gen_model = GenerativeModel(self.generation_model_name)
+            self.eval_model = GenerativeModel(self.evaluation_model_name)
+            
+            log.info(f"Using '{self.generation_model_name}' for question generation.")
             log.info(f"Using '{self.evaluation_model_name}' for answer evaluation.")
             
             self.is_ready = True
+            log.info("LLMEvaluator is ready.")
 
         except Exception as e:
-            log.error(f"An error occurred during Gemini initialization: {e}")
+            log.error(f"LLM Initialization Failed: {e}")
+            log.error("Ensure GOOGLE_APPLICATION_CREDENTIALS is set and points to your JSON key.")
+            log.error(traceback.format_exc())
             self.is_ready = False
 
     def _load_prompt(self, filepath):
@@ -52,8 +73,7 @@ class LLMEvaluator:
 
     def get_questions(self, language, difficulty, topic):
         """
-        Generates a new set of trivia questions, skipping if the file exists
-        and overwriting is disabled.
+        Generates a new set of trivia questions.
         """
         if not self.is_ready:
             log.error("LLM is not ready. Cannot generate questions.")
@@ -71,10 +91,28 @@ class LLMEvaluator:
         
         log.info("Generating new trivia questions from LLM...")
         try:
-            response = self.generation_model.generate_content(prompt)
-            log.debug(f"Raw LLM response (get_questions): {response.text}")
+            # --- GENERATION CALL ---
+            response = self.gen_model.generate_content(
+                prompt,
+                generation_config=GenerationConfig(
+                    temperature=0.7,
+                    max_output_tokens=8192, # Increased token limit
+                    response_mime_type="application/json" # Forces JSON output (Available in newer models)
+                )
+            )
+            
+            # Safety check for empty response
+            if not response.candidates or not response.candidates[0].content.parts:
+                log.error("LLM returned an empty response for question generation.")
+                return False
 
-            cleaned_json = response.text.strip().replace("```json", "").replace("```", "").strip()
+            raw_response_text = response.text
+            log.debug(f"Raw LLM response (get_questions): {raw_response_text}")
+
+            # Cleanup JSON markdown if present (e.g. ```json ... ```)
+            cleaned_json = raw_response_text.strip()
+            if cleaned_json.startswith("```"):
+                cleaned_json = cleaned_json.split("```json")[-1].split("```")[0].strip()
             
             game_data = json.loads(cleaned_json)
             with open(GAME_QUESTIONS_FILE, 'w', encoding='utf-8') as f:
@@ -82,13 +120,15 @@ class LLMEvaluator:
             
             log.info(f"Successfully generated and saved new questions to {GAME_QUESTIONS_FILE}")
             return True
+
         except Exception as e:
             log.error(f"Failed to generate or save questions from LLM: {e}")
+            log.error(traceback.format_exc())
             return False
 
     def evaluate_answer(self, question, correct_answer, user_answer, team_names):
         """
-        Evaluates a user's answer using the fast evaluation model.
+        Evaluates a user's answer.
         """
         if not self.is_ready:
             log.error("LLM is not ready. Cannot evaluate answer.")
@@ -108,20 +148,43 @@ class LLMEvaluator:
 
         log.info(f"Evaluating answer: '{user_answer}'")
         try:
-            response = self.evaluation_model.generate_content(prompt)
-            log.debug(f"Raw LLM response (evaluate_answer): {response.text}")
+            # --- EVALUATION CALL ---
+            response = self.eval_model.generate_content(
+                prompt,
+                generation_config=GenerationConfig(
+                    temperature=0.1,
+                    max_output_tokens=1024, # Increased token limit
+                    response_mime_type="application/json"
+                )
+            )
 
-            cleaned_json = response.text.strip().replace("```json", "").replace("```", "").strip()
+            # Safety check for empty response
+            if not response.candidates or not response.candidates[0].content.parts:
+                log.error("LLM returned an empty response for answer evaluation (likely hit MAX_TOKENS or safety filters).")
+                return None
+
+            raw_response_text = response.text
+            
+            # Cleanup JSON
+            cleaned_json = raw_response_text.strip()
+            if cleaned_json.startswith("```"):
+                cleaned_json = cleaned_json.split("```json")[-1].split("```")[0].strip()
+
             result = json.loads(cleaned_json)
             
             if "answer" in result and "team_name" in result:
                 log.info(f"LLM evaluation result: {result['answer']} for team {result['team_name']}")
                 return result
             else:
-                log.error(f"LLM response is missing required keys: {response.text}")
+                log.error(f"LLM response is missing required keys: {raw_response_text}")
                 return None
+        except json.JSONDecodeError as e:
+            log.error(f"Failed to decode LLM JSON response: {e}")
+            log.error(f"Raw response was: {raw_response_text}")
+            return None
         except Exception as e:
             log.error(f"Failed to evaluate answer with LLM: {e}")
+            log.error(traceback.format_exc())
             return None
 
 # Global instance

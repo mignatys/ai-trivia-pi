@@ -12,11 +12,15 @@ Supports:
 import json
 import time
 import threading
+import sys # Import sys for stdout.flush()
+from config import LOG_LEVEL # Import LOG_LEVEL from config.py
 
 class Logger:
     def __init__(self):
         self.lock = threading.Lock()
         self.history = []  # entries for web interface (max 300)
+        self.level_map = {"DEBUG": 0, "INFO": 1, "WARN": 2, "ERROR": 3}
+        self.current_log_level = self.level_map.get(LOG_LEVEL.upper(), 0) # Default to DEBUG if not found
 
     # Color codes
     COLOR_RESET = "\033[0m"
@@ -26,6 +30,9 @@ class Logger:
         "ERROR": "\033[91m",
         "DEBUG": "\033[94m",
     }
+
+    def _should_log(self, level):
+        return self.level_map.get(level.upper(), 0) >= self.current_log_level
 
     def _store(self, level, msg):
         entry = {
@@ -40,8 +47,10 @@ class Logger:
                 self.history.pop(0)
 
     def _print(self, level, msg):
-        color = self.COLORS.get(level, "")
-        print(f"{color}[{level}] {msg}{self.COLOR_RESET}")
+        if self._should_log(level):
+            color = self.COLORS.get(level, "")
+            print(f"{color}[{level}] {msg}{self.COLOR_RESET}")
+            sys.stdout.flush() # Explicitly flush stdout
 
     def log(self, level, msg):
         self._store(level, msg)
@@ -56,4 +65,3 @@ class Logger:
 
 # Global logger instance
 log = Logger()
-

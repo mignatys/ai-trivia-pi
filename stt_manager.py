@@ -14,6 +14,7 @@ import threading
 import queue
 import wave
 import time
+from audio import audio
 
 # Audio recording parameters
 SAMPLERATE = 16000
@@ -35,11 +36,12 @@ class STTManager:
                 sample_rate_hertz=SAMPLERATE,
                 language_code="ru-RU",
             ),
-            interim_results=False,
-            single_utterance=True,
+            interim_results=True, # Enable interim results for faster feedback
+            single_utterance=False, # Allow multiple utterances
         )
         self._buffer = queue.Queue()
         self._stop_event = threading.Event()
+        self._stream = None # To hold the sounddevice stream object
         log.info("Speech-to-Text manager initialized (using sounddevice).")
 
     def _audio_callback(self, indata, frames, time, status):
@@ -61,9 +63,9 @@ class STTManager:
         except Exception as e:
             log.error(f"Failed to save .wav file: {e}")
 
-    def recognize_speech(self, hint_text="Speak now...", timeout_sec=15, silence_duration_sec=2.0):
+    def recognize_speech(self, hint_text="Speak now...", timeout_sec=15, silence_duration_sec=0.8):
         """
-        Listens for a single utterance and returns the transcribed text.
+        Listens for speech and returns the transcribed text.
         Stops listening after a period of silence.
         """
         log.info(f"Listening for speech... ({hint_text})")
@@ -72,6 +74,7 @@ class STTManager:
         
         recorded_chunks = []
         last_sound_time = time.time()
+        full_transcript = ""
 
         def audio_generator():
             nonlocal last_sound_time
@@ -82,7 +85,6 @@ class STTManager:
                 
                 recorded_chunks.append(chunk)
                 
-                # Simple RMS-based silence detection
                 rms = np.sqrt(np.mean(np.frombuffer(chunk, dtype=np.int16).astype(np.float32)**2))
                 if rms > SILENCE_THRESHOLD:
                     last_sound_time = time.time()
@@ -94,10 +96,11 @@ class STTManager:
                 yield speech.StreamingRecognizeRequest(audio_content=chunk)
 
         try:
+            audio.mute_all()
             log.info("Recording started...")
-            with sd.InputStream(samplerate=SAMPLERATE, channels=CHANNELS, dtype=DTYPE,
-                                blocksize=BLOCK_SIZE, callback=self._audio_callback):
-                
+            self._stream = sd.InputStream(samplerate=SAMPLERATE, channels=CHANNELS, dtype=DTYPE,
+                                blocksize=BLOCK_SIZE, callback=self._audio_callback)
+            with self._stream:
                 requests = audio_generator()
                 responses = self.client.streaming_recognize(
                     config=self.streaming_config,
@@ -113,13 +116,13 @@ class STTManager:
                     if not result.alternatives:
                         continue
 
+                    transcript = result.alternatives[0].transcript
                     if result.is_final:
-                        text = result.alternatives[0].transcript
-                        log.info(f"Speech recognized: '{text}'")
-                        return text
+                        full_transcript += transcript + " "
+                        log.debug(f"Intermediate transcript: '{full_transcript}'")
             
-            log.info("No speech detected within the timeout or recording stopped due to silence.")
-            return None
+            log.info(f"Final speech recognized: '{full_transcript.strip()}'")
+            return full_transcript.strip()
 
         except Exception as e:
             log.error(f"An error occurred during speech recognition: {e}")
@@ -127,10 +130,18 @@ class STTManager:
                 log.info("Recognition timed out.")
             return None
         finally:
+            audio.unmute_all()
             self._stop_event.set()
             self._buffer.put(None) # Ensure the generator loop terminates
             self._write_to_wav(recorded_chunks)
             log.info("Recording stopped.")
+
+    def shutdown(self):
+        """Explicitly stops the sounddevice stream if it's active."""
+        if self._stream and self._stream.active:
+            self._stream.stop()
+            self._stream.close()
+            log.info("Sounddevice stream shut down.")
 
 # Global instance
 stt = STTManager()

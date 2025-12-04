@@ -1,18 +1,10 @@
-add ticking sound
-ad ding at 55 sec, button should start blinking untill the end of timer
 voice commands
-bg music should continue untill i press button to say topik after the intro section
-after saying the topic i should get a prompt for difficulty immediately. it is waiting to push a button instead
-done
-crash when score anouncement not ready
+1)allow to interupt prompt for topic and difficulty by pressin a button and accept answer right after that
+2)while main i loading web server is showing an ugly page. make it in the same stile as main page just say game is loading..
+3)top bar where question circles are. before the game loaded it is narrower in size and setting button is floating. presence of setting button should be enough to defin the height of that top bar
+4)question should not appear in UI until prompt voice is complete, only then show it.
+also show the count down timer on UI. make it flash if there are less than 5 sec left
 
-1)a greeting should be played after players push button to start the game
-
-2)answer was accepted as correct with no team name, LLM will return "" in team name if it was not detected. our code should handle it and request teams to resubmit answer we have a TTS for that
-3) after each round output debug with team score
-- if the same team answers the first question and then the second it is allowed. alternating answering order rule only takes place within the same round and when the first team that answered the question answered it wrong.
-- when the first team gives a wrong answer and we resume the timer, do not repeat the question just resume the timer
-- if a team gave a wrong answer and time ran out and we gave a hint, alternating order resets and any team can answer again.
--when question is set to no answer state, this TTS is played twice
-
-we should allow longer mic recording pauses, it cut me of without giving a full answer, allow 2 sec delay of no voice.
+если отиграли вопрос и не угадали закрась шарик красным оттенком
+если кто то вопрос выиграл то деленым
+после факта о вопросе вэб интерфейс убрал подсказки и просто показал с нова первый вопрос, вместо этого отобрази цифру номер вопроса
